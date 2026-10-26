@@ -1,11 +1,182 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const phrases = [
+    'At home',
+    'Some times',
+    'It just works!',
+    'But not today',
+    'Right now',
+    'With Claude',
+    'No, Sapryx',
+    'At nights'
+];
 ---
 
 <Layout>
-    <Welcome/>
+    <main>
+        <h1>
+            <span>Blaadworks:</span>
+            <span id="prism" class="prism">
+                <span id="faces" class="faces" data-phrases={JSON.stringify(phrases)}>
+                    {phrases.map(phrase => <span class="sizer">{phrase}</span>)}
+                    {[0, 1, 2, 3].map(index => <span class="face" style={`--index: ${index}`}>{phrases[index]}</span>)}
+                </span>
+            </span>
+        </h1>
+    </main>
+
+    <script>
+        const prism = document.getElementById('prism')!;
+        const faces = document.getElementById('faces')!;
+        const faceElements = [...faces.querySelectorAll('.face')];
+        const phrases: string[] = JSON.parse(faces.dataset.phrases!);
+        const inertia = 400;
+        let step = 0;
+        let target = 0;
+        let timer = 0;
+        let frame = 0;
+        let dragStartY = 0;
+        let dragStartStep = 0;
+        let velocity = 0;
+        let lastTime = 0;
+
+        function modulo(value: number, divisor: number) {
+            return (value % divisor + divisor) % divisor;
+        }
+
+        function rotate(value: number) {
+            step = value;
+            faces.style.setProperty('--step', `${step}`);
+
+            const front = Math.round(step);
+            for(let index = front - 1; index <= front + 1; index++) {
+                const face = faceElements[modulo(index, faceElements.length)];
+                const phrase = phrases[modulo(index, phrases.length)];
+                if(face.textContent !== phrase) {
+                    face.textContent = phrase;
+                }
+            }
+        }
+
+        function startTimer() {
+            timer = window.setInterval(() => rotate(step + 1), 1500);
+        }
+
+        function coast() {
+            const now = performance.now();
+            rotate(target - (target - step) * Math.exp((lastTime - now) / inertia));
+            lastTime = now;
+
+            if(Math.abs(target - step) > 0.005) {
+                frame = requestAnimationFrame(coast);
+            } else {
+                prism.classList.remove('dragging');
+                rotate(target);
+                startTimer();
+            }
+        }
+
+        prism.addEventListener('pointerdown', event => {
+            window.clearInterval(timer);
+            cancelAnimationFrame(frame);
+            prism.setPointerCapture(event.pointerId);
+            prism.classList.add('dragging');
+            dragStartY = event.clientY;
+            dragStartStep = step;
+            velocity = 0;
+            lastTime = event.timeStamp;
+        });
+
+        prism.addEventListener('pointermove', event => {
+            if(!prism.hasPointerCapture(event.pointerId)) {
+                return;
+            }
+
+            const previousStep = step;
+            rotate(dragStartStep + (event.clientY - dragStartY) / prism.offsetHeight);
+
+            const delta = event.timeStamp - lastTime;
+            if(delta > 0) {
+                velocity = 0.8 * (step - previousStep) / delta + 0.2 * velocity;
+                lastTime = event.timeStamp;
+            }
+        });
+
+        prism.addEventListener('lostpointercapture', () => {
+            if(performance.now() - lastTime > 100) {
+                velocity = 0;
+            }
+
+            target = Math.round(step + velocity * inertia);
+            lastTime = performance.now();
+            frame = requestAnimationFrame(coast);
+        });
+
+        rotate(0);
+        startTimer();
+    </script>
 </Layout>
+
+<style>
+    main {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        box-sizing: border-box;
+    }
+
+    h1 {
+        --height: 1.2em;
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        column-gap: 0.25em;
+        font-size: clamp(2rem, 7vw, 6rem);
+        line-height: var(--height);
+    }
+
+    .prism {
+        perspective: 10em;
+        cursor: grab;
+        touch-action: none;
+    }
+
+    .prism.dragging {
+        cursor: grabbing;
+    }
+
+    .faces {
+        --step: 0;
+        --radius: calc(var(--height) / 2);
+        display: grid;
+        color: gray;
+        transform-style: preserve-3d;
+        transform: translateZ(calc(-1 * var(--radius))) rotateX(calc(var(--step) * -90deg));
+        transition: transform 0.5s ease-in-out;
+    }
+
+    .dragging .faces {
+        transition: none;
+    }
+
+    .sizer,
+    .face {
+        grid-area: 1 / 1;
+        height: var(--height);
+        white-space: nowrap;
+    }
+
+    .sizer {
+        visibility: hidden;
+    }
+
+    .face {
+        backface-visibility: hidden;
+        transform: rotateX(calc(var(--index) * 90deg)) translateZ(var(--radius));
+    }
+</style>
