@@ -21,6 +21,10 @@ The whole site is a single page: a centered `Blaadworks: <phrase>` heading, the 
 
 Node `>=22.12.0`. Dependencies are kept at the latest Astro; when bumping, update the range in `package.json` to the installed version too.
 
+## Deploy
+
+Self-hosted on Blaadick's home server. `.github/workflows/deploy.yml` runs on every push to `master`: builds the site and rsyncs the checkout (including `dist/`) over SSH to `/srv/http/blaadworks.org/`. It needs the repository secrets `SSH_KEY`, `SSH_KNOWN_HOSTS`, `SSH_HOST` and optionally `SSH_PORT`. The workflow mirrors the one in `blaadick.blaadworks.org`; keep them in sync. Don't touch the server or deploy anything yourself.
+
 ## Code style
 
 No formatter config; the project is edited in WebStorm. Match the existing files:
